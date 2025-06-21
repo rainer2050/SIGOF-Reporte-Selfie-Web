@@ -170,7 +170,7 @@ def generar_excel_selfies():
 
                     image_height_px = 200
                     image_width_px = 140
-                    ws[formula_cell] = f'=IMAGE({url_cell},4,{image_height_px},{image_width_px})'
+                    ws[formula_cell] = f'=IMAGE({url_cell})'
 
                     vista_col_letter = get_column_letter(vista_col_index)
                     ws.column_dimensions[vista_col_letter].width = round(image_width_px / 7, 1)
