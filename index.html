@@ -1,0 +1,22 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Reporte Selfie SIGOF</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; margin-top: 50px; }
+        input { margin: 10px; padding: 8px; width: 250px; }
+        button { padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 5px; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h2>📋 Ingresa tu usuario SIGOF</h2>
+    <form method="post">
+        <input type="text" name="usuario" placeholder="👤 Usuario" required><br>
+        <input type="password" name="clave" placeholder="🔑 Clave" required><br>
+        <button type="submit">🔓 Generar Reporte</button>
+    </form>
+    {% if error %}<p class="error">{{ error }}</p>{% endif %}
+</body>
+</html>
