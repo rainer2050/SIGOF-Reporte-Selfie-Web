@@ -1,22 +1,121 @@
-
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-    <title>Reporte Selfie SIGOF</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login SIGOF Web</title>
     <style>
-        body { font-family: sans-serif; text-align: center; margin-top: 50px; }
-        input { margin: 10px; padding: 8px; width: 250px; }
-        button { padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 5px; }
-        .error { color: red; }
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 400px;
+            text-align: center;
+        }
+        h2 {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 18px;
+            margin-bottom: 20px;
+            display: inline-block;
+        }
+        .form-group {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        .form-group input[type="text"],
+        .form-group input[type="password"] {
+            width: calc(100% - 20px);
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #28a745;
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 5px;
+            font-size: 17px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-top: 15px;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        .message {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .message.warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+        .message a {
+            color: #0056b3;
+            text-decoration: none;
+        }
+        .message a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
-    <h2>📋 Ingresa tu usuario SIGOF</h2>
-    <form method="post">
-        <input type="text" name="usuario" placeholder="👤 Usuario" required><br>
-        <input type="password" name="clave" placeholder="🔑 Clave" required><br>
-        <button type="submit">🔓 Generar Reporte</button>
-    </form>
-    {% if error %}<p class="error">{{ error }}</p>{% endif %}
+    <div class="container">
+        <h2>📋 HUMANO INGRESA TU USUARIO Y CONTRASEÑA DE SIGOF WEB</h2>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="message {{ category }}">{{ message | safe }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="/">
+            <div class="form-group">
+                <label for="usuario">👤 Usuario:</label>
+                <input type="text" id="usuario" name="usuario" placeholder="Ingrese su usuario" required>
+            </div>
+            <div class="form-group">
+                <label for="password">🔑 Clave:</label>
+                <input type="password" id="password" name="password" placeholder="Ingrese su contraseña" required>
+            </div>
+            <button type="submit">🔓 Humano inicia sesión</button>
+        </form>
+    </div>
 </body>
 </html>
