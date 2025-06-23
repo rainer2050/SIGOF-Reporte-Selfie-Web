@@ -8,9 +8,9 @@ st.set_page_config(page_title="Reporte de Selfies", layout="centered")
 st.markdown("<h3 style='text-align: center; color: #007BFF;'>INGRESA TUS CREDENCIALES DE SIGOF WEB</h3>", unsafe_allow_html=True)
 
 # Inicializar estado
-for key in ["logged_in", "dataframe", "usuario", "clave", "session", "headers"]:
+for key in ["logged_in", "dataframe", "usuario", "clave", "session", "headers", "fecha_filtro_seleccionada"]:
     if key not in st.session_state:
-        st.session_state[key] = None if key != "logged_in" else False
+        st.session_state[key] = None if key not in ["logged_in", "fecha_filtro_seleccionada"] else False if key == "logged_in" else "Todas"
 if st.session_state["dataframe"] is None:
     st.session_state["dataframe"] = pd.DataFrame()
 
@@ -73,7 +73,8 @@ if not st.session_state.logged_in:
             submitted = st.form_submit_button("🔓 Iniciar sesión")
 
         if submitted:
-            login_url = "http://sigof.distriluz.com.pe/plus/usuario/login" # ¡Considera cambiar a HTTPS!
+            # ¡Considera cambiar a HTTPS!
+            login_url = "http://sigof.distriluz.com.pe/plus/usuario/login"
             session = requests.Session()
             credentials = {
                 "data[Usuario][usuario]": usuario,
@@ -115,10 +116,31 @@ if not st.session_state.logged_in:
 if st.session_state.logged_in:
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
+        # Guardar la selección actual de la fecha en session_state antes de los selectbox
+        # para que persista a través de las actualizaciones.
+        # Usa index para mantener la selección
+        opciones_fecha = ["Todas"] + sorted(st.session_state.dataframe["fecha"].unique())
+        try:
+            current_date_index = opciones_fecha.index(st.session_state.fecha_filtro_seleccionada)
+        except ValueError:
+            current_date_index = 0 # Si la fecha seleccionada ya no existe (ej. por datos nuevos), vuelve a 'Todas'
+
+        fecha_opcion = st.selectbox(
+            "📅 Filtrar por Fecha",
+            opciones_fecha,
+            index=current_date_index,
+            key="fecha_filtro_selectbox" # Añadir una key para asegurar que Streamlit lo rastree correctamente
+        )
+        # Actualizar la selección guardada solo cuando el selectbox cambia por interacción del usuario
+        if fecha_opcion != st.session_state.fecha_filtro_seleccionada:
+            st.session_state.fecha_filtro_seleccionada = fecha_opcion
+
+
         if st.button("🔄 Actualizar Selfies"):
             st.session_state.dataframe = pd.DataFrame() # Limpiar el dataframe antes de actualizar
             st.info("Reautenticando y actualizando datos...")
-            login_url_refresh = "http://sigof.distriluz.com.pe/plus/usuario/login" # ¡Considera cambiar a HTTPS!
+            # ¡Considera cambiar a HTTPS!
+            login_url_refresh = "http://sigof.distriluz.com.pe/plus/usuario/login"
             try:
                 # Recrear la sesión con las credenciales guardadas
                 session_refresh = requests.Session()
@@ -139,13 +161,15 @@ if st.session_state.logged_in:
                         st.session_state.session = session_refresh # Actualizar la sesión guardada
                         st.session_state.headers = headers_refresh # Actualizar los headers guardados
                         st.success("✅ Datos actualizados correctamente.")
-                        st.experimental_rerun()
+                        # No es necesario un rerun si el estado ya maneja la visualización
+                        # La selección de fecha ya está en session_state.fecha_filtro_seleccionada
+                        # y el selectbox se inicializa con ella.
                     else:
                         st.warning("⚠️ No se encontraron nuevos datos de selfies.")
                 else:
                     st.error("🔐 La sesión expiró o las credenciales ya no son válidas. Por favor, reinicia la aplicación y vuelve a iniciar sesión.")
                     st.session_state.logged_in = False # Forzar logout
-                    st.experimental_rerun()
+                    st.experimental_rerun() # Fuerza un rerun para ir a la pantalla de login
             except requests.exceptions.Timeout:
                 st.error("⏳ La solicitud de actualización ha excedido el tiempo de espera. Intenta de nuevo más tarde.")
             except requests.exceptions.ConnectionError:
@@ -157,17 +181,18 @@ if st.session_state.logged_in:
 
     df = st.session_state.dataframe
     if not df.empty:
+        # Aplicar el filtro de fecha usando la selección guardada en session_state
+        df_filtrado = df.copy()
+        if st.session_state.fecha_filtro_seleccionada != "Todas":
+            df_filtrado = df_filtrado[df_filtrado["fecha"] == st.session_state.fecha_filtro_seleccionada]
+
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            fecha_opcion = st.selectbox("📅 Filtrar por Fecha", ["Todas"] + sorted(df["fecha"].unique()))
-
-        df_filtrado = df[df["fecha"] == fecha_opcion] if fecha_opcion != "Todas" else df
-
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
+            # Reconstruir las opciones para el filtro de nombre basado en el df_filtrado actual
             nombre_opcion = st.selectbox("👤 Filtrar por Lecturista", ["Todos"] + sorted(df_filtrado["nombre"].unique()))
 
-        df_filtrado = df_filtrado[df_filtrado["nombre"] == nombre_opcion] if nombre_opcion != "Todos" else df_filtrado
+        if nombre_opcion != "Todos":
+            df_filtrado = df_filtrado[df_filtrado["nombre"] == nombre_opcion]
 
         st.markdown("---")
         st.markdown(f"<h4 style='text-align: center; color:#007BFF'>📸 {len(df_filtrado)} selfies encontradas</h4>", unsafe_allow_html=True)
