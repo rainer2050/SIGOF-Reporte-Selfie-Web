@@ -1,16 +1,19 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, send_file
+import streamlit as st
 import requests
 import re
 import pandas as pd
-from openpyxl import Workbook
-from openpyxl.utils import get_column_letter
-import os
-import io
 
-app = Flask(__name__)
-app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'una_clave_secreta_muy_segura_aqui') # ¡IMPORTANTE: Cambia esto en Render!
+st.set_page_config(page_title="Reporte de Selfies", layout="centered")
 
-# --- Función de procesamiento de fecha/hora ---
+st.markdown("<h3 style='text-align: center; color: #007BFF;'>INGRESA TUS CREDENCIALES DE SIGOF WEB</h3>", unsafe_allow_html=True)
+
+# --- Inicializar estado ---
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+if "dataframe" not in st.session_state:
+    st.session_state.dataframe = pd.DataFrame()
+
+# --- Función para convertir fechas ---
 def convertir_fecha_hora(fecha_hora_str):
     meses = {
         "January": "01", "February": "02", "March": "03", "April": "04",
@@ -24,116 +27,96 @@ def convertir_fecha_hora(fecha_hora_str):
         return f"{dia.zfill(2)}/{mes_num}/{anio} {hora}"
     return fecha_hora_str
 
-@app.route('/', methods=['GET', 'POST'])
-def iniciar_formulario():
-    if request.method == 'POST':
-        usuario = request.form['usuario']
-        password = request.form['password']
+# --- FORMULARIO DE LOGIN ---
+if not st.session_state.logged_in:
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        with st.form("login_form"):
+            usuario = st.text_input("👤 Usuario:", max_chars=30)
+            clave = st.text_input("🔑 Contraseña:", type="password", max_chars=30)
+            submitted = st.form_submit_button("🔓 Humano inicia sesión")
 
-        login_url = "http://sigof.distriluz.com.pe/plus/usuario/login"
-        data_url = "http://sigof.distriluz.com.pe/plus/ComlecOrdenlecturas/ajax_mostar_mapa_selfie"
+            if submitted:
+                login_url = "http://sigof.distriluz.com.pe/plus/usuario/login"
+                data_url = "http://sigof.distriluz.com.pe/plus/ComlecOrdenlecturas/ajax_mostar_mapa_selfie"
 
-        credentials = {
-            "data[Usuario][usuario]": usuario,
-            "data[Usuario][pass]": password
-        }
+                with requests.Session() as session:
+                    credentials = {
+                        "data[Usuario][usuario]": usuario,
+                        "data[Usuario][pass]": clave
+                    }
+                    headers = {
+                        "User-Agent": "Mozilla/5.0",
+                        "Referer": login_url
+                    }
 
-        headers = {
-            "User-Agent": "Mozilla/5.0",
-            "Referer": login_url,
-        }
+                    response = session.post(login_url, data=credentials, headers=headers)
 
-        with requests.Session() as session:
-            login_response = session.post(login_url, data=credentials, headers=headers)
-            if "Usuario o contraseña incorrecto" in login_response.text:
-                flash("🧠 Humano, las credenciales son incorrectas.", 'error')
-                return redirect(url_for('iniciar_formulario'))
-            
-            data_response = session.get(data_url, headers=headers)
+                    if "Usuario o contraseña incorrecto" in response.text:
+                        st.error("🧠 Usuario o contraseña incorrectos.")
+                    else:
+                        data_response = session.get(data_url, headers=headers)
+                        data = data_response.text
+                        data_cleaned = data.replace("\\/", "/")
+                        data_cleaned = re.sub(r"<\/?\w+.*?>", "", data_cleaned)
+                        data_cleaned = re.sub(r"\s+", " ", data_cleaned).strip()
+                        blocks = re.split(r"Ver detalle", data_cleaned)
 
-        data = data_response.text
-        data_cleaned = data.replace("\\/", "/")
-        data_cleaned = re.sub(r"<\/?\w+.*?>", "", data_cleaned)
-        data_cleaned = re.sub(r"\s+", " ", data_cleaned).strip()
-        blocks = re.split(r"Ver detalle", data_cleaned)
+                        registros = []
+                        for block in blocks:
+                            fecha = re.search(r"Fecha Selfie:\s*(\d{1,2} de [a-zA-Z]+ de \d{4} en horas: \d{2}:\d{2}:\d{2})", block)
+                            lecturista = re.search(r"Lecturista:\s*([\w\sÁÉÍÓÚáéíóúÑñ]+)", block)
+                            url = re.search(r"url\":\"(https[^\"]+)", block)
 
-        results = {}
-        for block in blocks:
-            fecha = re.search(r"Fecha Selfie:\s*(\d{1,2} de [a-zA-Z]+ de \d{4} en horas: \d{2}:\d{2}:\d{2})", block)
-            lecturista = re.search(r"Lecturista:\s*([\w\sÁÉÍÓÚáéíóúÑñ]+)", block)
-            url = re.search(r"url\":\"(https[^\"]+)", block)
+                            if fecha and lecturista and url:
+                                fecha_hora = convertir_fecha_hora(fecha.group(1).strip())
+                                fecha_sola = fecha_hora.split()[0]
+                                nombre = lecturista.group(1).strip()
+                                imagen_url = url.group(1).strip()
+                                registros.append({
+                                    "fecha": fecha_sola,
+                                    "nombre": nombre,
+                                    "url": imagen_url
+                                })
 
-            if fecha and lecturista and url:
-                fecha_hora_formateada = convertir_fecha_hora(fecha.group(1).strip())
-                fecha_selfie, _ = fecha_hora_formateada.split(" ")
-                lecturista_nombre = lecturista.group(1).strip()
-                url_imagen = url.group(1).strip()
+                        if registros:
+                            df = pd.DataFrame(registros)
+                            st.session_state.logged_in = True
+                            st.session_state.dataframe = df
+                        else:
+                            st.warning("⚠️ Humano tu usuario o contraseña es incorrecta / no se encontró datos para exportar.")
 
-                key = (lecturista_nombre, fecha_selfie)
-                if key not in results:
-                    results[key] = {"URLs Imagen": []}
-                results[key]["URLs Imagen"].append(url_imagen)
+# --- GALERÍA DE SELFIES ---
+if st.session_state.logged_in and not st.session_state.dataframe.empty:
+    df = st.session_state.dataframe
 
-        if results:
-            max_urls = max(len(item["URLs Imagen"]) for item in results.values())
-            url_columns = [f"Url_foto {i+1}" for i in range(max_urls)]
-            columns = ["Fecha Selfie", "Lecturista"] + url_columns
-            vista_columns = [f"Vista Url_foto {i+1}" for i in range(max_urls)]
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        fecha_filtro = st.selectbox("📅 Humano Filtrar por Fecha", ["Todas"] + sorted(df["fecha"].unique()))
 
-            data_list = []
-            for (lecturista, fecha_selfie), info in results.items():
-                row = [fecha_selfie, lecturista] + info["URLs Imagen"] + [""] * (max_urls - len(info["URLs Imagen"]))
-                data_list.append(row)
+    df_filtrado = df.copy()
+    if fecha_filtro != "Todas":
+        df_filtrado = df_filtrado[df_filtrado["fecha"] == fecha_filtro]
 
-            df = pd.DataFrame(data_list, columns=columns)
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        nombre_filtro = st.selectbox("👤 Humano Filtrar por Lecturista", ["Todos"] + sorted(df_filtrado["nombre"].unique()))
 
-            # Crear el archivo Excel en memoria
-            wb = Workbook()
-            ws = wb.active
-            ws.title = "LmcSelfiesLectura"
-            ws.append(columns + vista_columns)
+    if nombre_filtro != "Todos":
+        df_filtrado = df_filtrado[df_filtrado["nombre"] == nombre_filtro]
 
-            for i, row in enumerate(df.itertuples(index=False), start=2):
-                row_data = list(row)
-                ws.append(row_data + [""] * max_urls)
+    st.markdown("---")
+    st.markdown(f"<h4 style='text-align: center; color:#007BFF'> Humano 📸 {len(df_filtrado)} selfies encontradas</h4>", unsafe_allow_html=True)
 
-                for j in range(max_urls):
-                    col_index = 3 + j
-                    url_cell = f"{get_column_letter(col_index)}{i}"
-                    vista_col_index = len(columns) + j + 1
-                    formula_cell = f"{get_column_letter(vista_col_index)}{i}"
-
-                    image_height_px = 200
-                    image_width_px = 140
-                    ws[formula_cell] = f'=IMAGE({url_cell},4,{image_height_px},{image_width_px})'
-
-                    vista_col_letter = get_column_letter(vista_col_index)
-                    ws.column_dimensions[vista_col_letter].width = round(image_width_px / 7, 1)
-
-                ws.row_dimensions[i].height = 151
-            
-            # Guardar el libro en un buffer en memoria
-            excel_file_buffer = io.BytesIO()
-            wb.save(excel_file_buffer)
-            excel_file_buffer.seek(0) # Volver al inicio del buffer
-
-            filename = "Lmc_ReporteSelfie.xlsx"
-            
-            # Devolver el archivo Excel para descarga
-            flash("✅ Humano, tu archivo de reporte de selfies está listo para descargar.", 'success')
-            return send_file(
-                excel_file_buffer,
-                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                as_attachment=True,
-                download_name=filename
-            )
-
-        else:
-            flash("⚠️ Humano, tu usuario o contraseña es incorrecta / no se encontró datos para exportar.", 'warning')
-            return redirect(url_for('iniciar_formulario'))
-
-    # Si es una solicitud GET, simplemente muestra el formulario
-    return render_template('index.html')
-
-if __name__ == '__main__':
-    app.run(debug=True)
+    for _, row in df_filtrado.iterrows():
+        st.markdown(
+            f"""
+            <div style='text-align: center; margin-bottom: 15px;'>
+                <img src="{row['url']}" style='width: 250px; border-radius: 10px;'><br>
+                <div style='font-weight: bold; font-size: 14px; margin-top: 5px; color: #007BFF;'>
+                    {row['nombre']} - {row['fecha']}
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
