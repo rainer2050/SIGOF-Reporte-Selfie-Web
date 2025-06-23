@@ -31,7 +31,7 @@ def obtener_selfies(session, headers):
     url = "http://sigof.distriluz.com.pe/plus/ComlecOrdenlecturas/ajax_mostar_mapa_selfie"
     data_response = session.get(url, headers=headers)
     data = data_response.text
-    data_cleaned = re.sub(r"<\/?\w+.*?>", "", data.replace("\/", "/"))
+    data_cleaned = re.sub(r"</?\w+.*?>", "", data.replace("\\/", "/"))
     data_cleaned = re.sub(r"\s+", " ", data_cleaned).strip()
     blocks = re.split(r"Ver detalle", data_cleaned)
 
@@ -39,7 +39,8 @@ def obtener_selfies(session, headers):
     for block in blocks:
         fecha = re.search(r"Fecha Selfie:\s*(\d{1,2} de [a-zA-Z]+ de \d{4} en horas: \d{2}:\d{2}:\d{2})", block)
         lecturista = re.search(r"Lecturista:\s*([\w\sÁÉÍÓÚáéíóúÑñ]+)", block)
-        url = re.search(r"url\":\"(https[^"]+)", block)
+        url = re.search(r'url\\":\\"(https[^"]+)', block)  # <- Línea corregida
+
         if fecha and lecturista and url:
             fecha_hora = convertir_fecha_hora(fecha.group(1).strip())
             registros.append({
@@ -47,6 +48,7 @@ def obtener_selfies(session, headers):
                 "nombre": lecturista.group(1).strip(),
                 "url": url.group(1).strip()
             })
+
     return pd.DataFrame(registros)
 
 if not st.session_state.logged_in:
