@@ -5,7 +5,7 @@ import pandas as pd
 
 st.set_page_config(page_title="Reporte de Selfies", layout="centered")
 
-st.markdown("<h3 style='text-align: center; color: #007BFF;'>INGRESA TUS CREDENCIALES DE SIGOF WEB</h3>", unsafe_allow_html=True)
+st.markdown("<h3 style='text-align: center; color: #007BFF;'>HUMANO INGRESA TUS CREDENCIALES DE SIGOF WEB</h3>", unsafe_allow_html=True) 
 
 # Inicializar estado
 for key in ["logged_in", "dataframe", "usuario", "clave", "session", "headers", "fecha_filtro_seleccionada", "new_records_count", "new_records_urls"]:
@@ -28,7 +28,7 @@ def convertir_fecha_hora(fecha_hora_str):
     return fecha_hora_str
 
 def obtener_selfies(session, headers):
-    url = "http://sigof.distriluz.com.pe/plus/ComlecOrdenlecturas/ajax_mostar_mapa_selfie"
+    url = "http://sigof.distriluz.com.pe/plus/ComlecOrdenlecturas/ajax_mostar_mapa_selfie" // AUTOR
     registros = []
     try:
         data_response = session.get(url, headers=headers, timeout=10)
