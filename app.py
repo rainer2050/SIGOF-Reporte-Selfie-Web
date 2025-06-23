@@ -28,7 +28,7 @@ def convertir_fecha_hora(fecha_hora_str):
     return fecha_hora_str
 
 def obtener_selfies(session, headers):
-    url = "http://sigof.distriluz.com.pe/plus/ComlecOrdenlecturas/ajax_mostar_mapa_selfie" // AUTOR
+    url = "http://sigof.distriluz.com.pe/plus/ComlecOrdenlecturas/ajax_mostar_mapa_selfie"
     registros = []
     try:
         data_response = session.get(url, headers=headers, timeout=10)
